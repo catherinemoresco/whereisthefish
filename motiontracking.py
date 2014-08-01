@@ -54,6 +54,13 @@ framecount = 0
 window_id = getWindow()
 
 
+overlay = cv2.imread("overlay2.png", 1)
+overlayMask = cv2.cvtColor( overlay, cv2.COLOR_BGR2GRAY )
+res, overlayMask = cv2.threshold( overlayMask, 10, 1, cv2.THRESH_BINARY_INV)
+h,w = overlayMask.shape
+overlayMask = np.repeat( overlayMask, 3).reshape( (h,w,3) )
+
+
 while True:
     bytes+=stream.read(1024)
     a = bytes.find('\xff\xd8')
@@ -90,6 +97,8 @@ while True:
         cv2.line(contourImg, (width/3, 0), (width/3, height), (255, 255, 255))
         cv2.line(contourImg, (2*width/3, 0), (2*width/3, height), (255, 255, 255))
 
+        img *= overlayMask
+        img += overlay
 
         cv2.imshow('i', cv2.add(img, contourImg))
 
