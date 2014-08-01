@@ -1,7 +1,16 @@
 import cv2
-import urllib 
+import urllib
 import numpy as np
+import subprocess
 
+WINDOW_NAME = "Pokemon"
+
+def getWindow():
+    result = subprocess.check_output(["xdotool", "search", "--name", WINDOW_NAME])
+    return result.split("\n")[0]
+
+def fire(keycode):
+    subprocess.call(["xdotool", "key", "--window", str(window_id), keycode])
 
 def diffImg(t1, t2):
     gray1 = cv2.cvtColor(t1, cv2.COLOR_BGR2GRAY)
@@ -18,21 +27,21 @@ def getButtonPress(pos):
   x, y = pos
   if y < height/3:
     if x < width/3:
-      return "A"
+      return ('z', "B")
     if x > 2*width/3:
-      return "B"
-    return "UP"
+      return ('x', "A")
+    return ('w', "UP")
   if y > 2*height/3:
     if x < width/3:
-      return "SEL"
+      return ('q', "SELECT")
     if x > 2*width/3:
-      return "START"
-    return "DOWN"
+      return ('e', "START")
+    return ('s', "DOWN")
   if x < width/3:
-    return "LEFT"
+    return ('a', "LEFT")
   if x > 2*width/3:
-    return "RIGHT" 
-  return None
+    return ('d', "RIGHT")
+  return None, "EMPTY"
 
 
 height = 480
@@ -41,9 +50,8 @@ runningAverage = np.zeros((height,width, 3), np.float64) # image to store runnin
 stream=urllib.urlopen('***REMOVED***')
 bytes=''
 areaThreshold = 1000
-framecount = 0;
-
-
+framecount = 0
+window_id = getWindow()
 
 
 while True:
@@ -70,8 +78,11 @@ while True:
         contourImg = np.zeros((height,width, 3), np.uint8)
         cv2.circle(contourImg,(int(ccenter[0]), int(ccenter[1])),3,(0,255,255),2)
 
-        if framecount == 30:
-          print getButtonPress(ccenter)
+        if framecount == 10:
+          keycode, value = getButtonPress(ccenter)
+          print(value)
+          if keycode != None:
+            fire(keycode)
           framecount = 0
 
         cv2.line(contourImg, (0, height/3), (width, height/3), (255, 255, 255))
@@ -84,6 +95,4 @@ while True:
 
         framecount += 1
         if cv2.waitKey(1) ==27:
-            exit(0)   
-
-
+            exit(0)
