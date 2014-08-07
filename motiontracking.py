@@ -2,15 +2,82 @@ import cv2
 import urllib
 import numpy as np
 import subprocess
+import random
+import math
 
 WINDOW_NAME = "Pokemon"
+IMG_B = cv2.imread("images/b.png", 1)
+IMG_A = cv2.imread("images/a.png", 1)
+IMG_UP = cv2.imread("images/up.png", 1)
+IMG_DOWN = cv2.imread("images/down.png", 1)
+IMG_LEFT = cv2.imread("images/left.png", 1)
+IMG_RIGHT = cv2.imread("images/right.png", 1)
+IMG_START = cv2.imread("images/start.png", 1)
+IMG_SELECT = cv2.imread("images/select.png", 1)
+IMG_EMPTY = cv2.imread("images/empty.png", 1)
+
+def getMaskFromOverlay(img):
+  overlayMask = cv2.cvtColor( img, cv2.COLOR_BGR2GRAY )
+  overlayMask = cv2.threshold( overlayMask, 10, 1, cv2.THRESH_BINARY_INV)[1]
+  h,w = overlayMask.shape
+  return np.repeat( overlayMask, 3).reshape( (h,w,3) )
+
+buttons = {
+  "B": {
+    "key": 'z',
+    "image": IMG_B,
+    "mask": getMaskFromOverlay(IMG_B)
+  },
+  "A": {
+    "key": 'x',
+    "image": IMG_A,
+    "mask": getMaskFromOverlay(IMG_A)
+  },
+  "UP": {
+    "key": 'w',
+    "image": IMG_UP,
+    "mask": getMaskFromOverlay(IMG_UP)
+  },
+  "DOWN": {
+    "key": 's',
+    "image": IMG_DOWN,
+    "mask": getMaskFromOverlay(IMG_DOWN)
+  },
+  "LEFT": {
+    "key": 'a',
+    "image": IMG_LEFT,
+    "mask": getMaskFromOverlay(IMG_LEFT)
+  },
+  "RIGHT": {
+    "key": 'd',
+    "image": IMG_RIGHT,
+    "mask": getMaskFromOverlay(IMG_RIGHT)
+  },
+  "START": {
+    "key": 'e',
+    "image": IMG_START,
+    "mask": getMaskFromOverlay(IMG_START)
+  },
+  "SELECT": {
+    "key": 'q',
+    "image": IMG_SELECT,
+    "mask": getMaskFromOverlay(IMG_SELECT)
+  },
+  "EMPTY": {
+    "key": None,
+    "image": IMG_EMPTY,
+    "mask": getMaskFromOverlay(IMG_EMPTY)
+  }
+}
+quadrantButtonMap = {}
 
 def getWindow():
     result = subprocess.check_output(["xdotool", "search", "--name", WINDOW_NAME])
     return result.split("\n")[0]
 
 def fire(keycode):
-    subprocess.call(["xdotool", "key", "--window", str(window_id), keycode])
+  print("fired :" + keycode)
+    # subprocess.call(["xdotool", "key", "--window", str(window_id), keycode])
 
 def diffImg(t1, t2):
     gray1 = cv2.cvtColor(t1, cv2.COLOR_BGR2GRAY)
@@ -23,25 +90,51 @@ def processFrame(bytes):
   a = cv2.imdecode(np.fromstring(bytes, dtype=np.uint8),cv2.CV_LOAD_IMAGE_COLOR)
   return a
 
-def getButtonPress(pos):
+def setQuadrantButtonMap():
+  unused = [0,1,2,3,4,5,6,7,8]
+  for key in buttons:
+    current = random.choice(unused)
+    quadrantButtonMap[current] = key
+    unused.remove(current)
+
+def getQuadrant(pos):
   x, y = pos
+  print height/3
+  print width/3
   if y < height/3:
     if x < width/3:
-      return ('z', "B")
+      return 0
     if x > 2*width/3:
-      return ('x', "A")
-    return ('w', "UP")
+      return 2
+    return 1
   if y > 2*height/3:
     if x < width/3:
-      return ('q', "SELECT")
+      return 6
     if x > 2*width/3:
-      return ('e', "START")
-    return ('s', "DOWN")
+      return 8
+    return 7
   if x < width/3:
-    return ('a', "LEFT")
+    return 3
   if x > 2*width/3:
-    return ('d', "RIGHT")
-  return None, "EMPTY"
+    return 5
+  return 4
+
+def getButtonPress(quadrant):
+  return buttons[quadrantButtonMap[quadrant]]["key"], quadrantButtonMap[quadrant]
+
+def assembleOverlay():
+  print quadrantButtonMap
+  h, w = buttons["B"]["image"].shape[:2]
+  overlay = np.zeros((h*3, w*3 + 1, 3), np.uint8)
+  overlaymask = np.zeros((h*3, w*3 + 1, 3), np.uint8)
+  for quadrant in range(0,9):
+    img = buttons[quadrantButtonMap[quadrant]]["image"]
+    mask = buttons[quadrantButtonMap[quadrant]]["mask"]
+
+    overlay[h*math.ceil(quadrant/3):h*(math.ceil(quadrant/3) + 1), w*(quadrant % 3):w*(quadrant % 3 + 1)] = img
+    overlaymask[h*math.ceil(quadrant/3):h*(math.ceil(quadrant/3) + 1), w*(quadrant % 3):w*(quadrant % 3 + 1)] = mask
+
+  return overlay, overlaymask
 
 
 height = 480
@@ -51,15 +144,10 @@ stream=urllib.urlopen('***REMOVED***')
 bytes=''
 areaThreshold = 1000
 framecount = 0
-window_id = getWindow()
+# window_id = getWindow()
 
-
-overlay = cv2.imread("overlay2.png", 1)
-overlayMask = cv2.cvtColor( overlay, cv2.COLOR_BGR2GRAY )
-res, overlayMask = cv2.threshold( overlayMask, 10, 1, cv2.THRESH_BINARY_INV)
-h,w = overlayMask.shape
-overlayMask = np.repeat( overlayMask, 3).reshape( (h,w,3) )
-
+setQuadrantButtonMap()
+overlay, overlayMask = assembleOverlay()
 
 while True:
     bytes+=stream.read(1024)
@@ -85,8 +173,14 @@ while True:
         contourImg = np.zeros((height,width, 3), np.uint8)
         cv2.circle(contourImg,(int(ccenter[0]), int(ccenter[1])),3,(0,255,255),2)
 
-        if framecount == 10:
-          keycode, value = getButtonPress(ccenter)
+        if framecount == 5:
+          quadrant = getQuadrant(ccenter)
+          print ccenter
+          print quadrant
+          keycode, value = getButtonPress(quadrant)
+          if value == "EMPTY":
+            setQuadrantButtonMap()
+            overlay, overlayMask = assembleOverlay()
           print(value)
           if keycode != None:
             fire(keycode)
