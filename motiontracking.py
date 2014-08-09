@@ -6,6 +6,7 @@ import random
 import math
 
 WINDOW_NAME = "Pokemon"
+FFMPEG_BIN = "ffmpeg"
 IMG_B = cv2.imread("images/b.png", 1)
 IMG_A = cv2.imread("images/a.png", 1)
 IMG_UP = cv2.imread("images/up.png", 1)
@@ -99,8 +100,6 @@ def setQuadrantButtonMap():
 
 def getQuadrant(pos):
   x, y = pos
-  print height/3
-  print width/3
   if y < height/3:
     if x < width/3:
       return 0
@@ -136,7 +135,19 @@ def assembleOverlay():
 
   return overlay, overlaymask
 
+emulator_current_frame = None
+def processEmulatorStream(pipe):
+  while True:
+    raw_image = pipe.stdout.read(640*528*3)
+    # transform the byte read into a numpy array
+    image = np.fromstring(raw_image, dtype='uint8')
+    print image.shape
+    emulator_current_frame = image.reshape((640,528,3))
+    # throw away the data in the pipe's buffer.
+    pipe.stdout.flush()
 
+
+# Handle Grayson Stream
 height = 480
 width = 640
 runningAverage = np.zeros((height,width, 3), np.float64) # image to store running avg
@@ -148,6 +159,18 @@ framecount = 0
 
 setQuadrantButtonMap()
 overlay, overlayMask = assembleOverlay()
+
+# Handle Emulator Stream
+emulator_stream_command = [ FFMPEG_BIN,
+            '-f', 'x11grab',
+            '-i', ':0',
+            '-f', 'image2pipe',
+            '-pix_fmt', 'rgb24',
+            '-vcodec', 'rawvideo', '-']
+emulator_stream_pipe = subprocess.Popen(emulator_stream_command, stdout = subprocess.PIPE, bufsize=10**8)
+processEmulatorStream(emulator_stream_pipe)
+
+output = np.zeros((720, 1280, 3), np.uint8)
 
 while True:
     bytes+=stream.read(1024)
@@ -175,13 +198,10 @@ while True:
 
         if framecount == 5:
           quadrant = getQuadrant(ccenter)
-          print ccenter
-          print quadrant
           keycode, value = getButtonPress(quadrant)
           if value == "EMPTY":
             setQuadrantButtonMap()
             overlay, overlayMask = assembleOverlay()
-          print(value)
           if keycode != None:
             fire(keycode)
           framecount = 0
@@ -194,8 +214,11 @@ while True:
         img *= overlayMask
         img += overlay
 
-        cv2.imshow('i', cv2.add(img, contourImg))
+        controller = cv2.add(img, contourImg).tostring()
+
+        output[:emulator_width, :emulator_height] = frame
+        output[1280 - width:720, 720 - height:720] = emulator_current_frame
+
+        cv2.imshow("i", output)
 
         framecount += 1
-        if cv2.waitKey(1) ==27:
-            exit(0)
