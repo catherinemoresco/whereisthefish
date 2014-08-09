@@ -186,7 +186,7 @@ command = [ FFMPEG_BIN,
 	'-tune', 'film',
         '-threads', '2',
         '-strict', 'normal',
-        'test.flv' ]
+        'rtmp://live.twitch.tv/app/' + sys.argv[0] ]
 
 output_stream_pipe = subprocess.Popen( command, stdin=subprocess.PIPE)
 
