@@ -4,6 +4,7 @@ import numpy as np
 import subprocess
 import random
 import math
+import datetime
 
 WINDOW_NAME = "Pokemon"
 WINDOW_HEIGHT = 720
@@ -169,14 +170,22 @@ command = [ FFMPEG_BIN,
         '-vcodec','rawvideo',
         '-s', str(WINDOW_WIDTH) + 'x' + str(WINDOW_HEIGHT), # size of one frame
         '-pix_fmt', 'rgb24',
-        '-r', '24', # frames per second
+        '-r', '15', # frames per second
         '-i', '-', # The imput comes from a pipe
         '-an', # Tells FFMPEG not to expect any audio
-        '-vcodec', 'flv',
-	#'-b', '1000k',
-	#'-minrate', '1000k',
-	#'-maxrate', '1000k',
-	#'-preset', 'ultrafast',
+	'-vcodec', 'libx264',
+        '-g', '30',
+        '-keyint_min', '15',
+        '-b', '1000k',
+        '-bufsize', '3000k',
+	'-minrate', '1000k',
+	'-maxrate', '1000k',
+        '-pix_fmt', 'yuv420p',
+        '-s', str(WINDOW_WIDTH) + 'x' + str(WINDOW_HEIGHT),
+	'-preset', 'ultrafast',
+	'-tune', 'film',
+        '-threads', '2',
+        '-strict', 'normal',
         'test.flv' ]
 
 output_stream_pipe = subprocess.Popen( command, stdin=subprocess.PIPE)
@@ -225,6 +234,7 @@ while True:
         img += overlay
 
         controller_frame = cv2.add(img, contourImg)
+	controller_frame = cv2.cvtColor( controller_frame, cv2.COLOR_BGR2RGB )
 
         raw_emulator_image = emulator_stream_pipe.stdout.read(EMULATOR_WIDTH*EMULATOR_HEIGHT*3)
         # transform the byte read into a numpy array
@@ -234,9 +244,13 @@ while True:
         emulator_stream_pipe.stdout.flush()
 
         output[:EMULATOR_HEIGHT, :EMULATOR_WIDTH] = emulator_frame
-        output[WINDOW_HEIGHT - CONTROLLER_HEIGHT:WINDOW_HEIGHT, 640:1280] = controller_frame
+        output[EMULATOR_HEIGHT-CONTROLLER_HEIGHT:EMULATOR_HEIGHT, WINDOW_WIDTH-CONTROLLER_WIDTH:WINDOW_WIDTH] = controller_frame
+	topbar_bottom_left = (WINDOW_WIDTH-EMULATOR_WIDTH , EMULATOR_HEIGHT-CONTROLLER_HEIGHT)
+	output[:topbar_bottom_left[1], topbar_bottom_left[0]:] = np.zeros((topbar_bottom_left[1], topbar_bottom_left[0], 3), np.uint8)
+        cv2.putText(output, "FPP: " + datetime.datetime.now().strftime("%m-%d-%Y %H:%M:%S-EST"), (topbar_bottom_left[0]+50, topbar_bottom_left[1] - topbar_bottom_left[1]/2 + 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,200,200), 4) 
 
-	output_stream_pipe.stdin.write(output.tostring())
+
+        output_stream_pipe.stdin.write(output.tostring())
 
         framecount += 1
 
