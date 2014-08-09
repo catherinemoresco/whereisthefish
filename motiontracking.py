@@ -6,7 +6,13 @@ import random
 import math
 
 WINDOW_NAME = "Pokemon"
+WINDOW_HEIGHT = 720
+WINDOW_WIDTH = 1280
 FFMPEG_BIN = "ffmpeg"
+CONTROLLER_HEIGHT = 480
+CONTROLLER_WIDTH = 640
+EMULATOR_HEIGHT = 576
+EMULATOR_WIDTH = 640
 IMG_B = cv2.imread("images/b.png", 1)
 IMG_A = cv2.imread("images/a.png", 1)
 IMG_UP = cv2.imread("images/up.png", 1)
@@ -77,8 +83,7 @@ def getWindow():
     return result.split("\n")[0]
 
 def fire(keycode):
-  print("fired :" + keycode)
-    # subprocess.call(["xdotool", "key", "--window", str(window_id), keycode])
+    subprocess.call(["xdotool", "key", "--window", str(window_id), keycode])
 
 def diffImg(t1, t2):
     gray1 = cv2.cvtColor(t1, cv2.COLOR_BGR2GRAY)
@@ -100,21 +105,21 @@ def setQuadrantButtonMap():
 
 def getQuadrant(pos):
   x, y = pos
-  if y < height/3:
-    if x < width/3:
+  if y < CONTROLLER_HEIGHT/3:
+    if x < CONTROLLER_WIDTH/3:
       return 0
-    if x > 2*width/3:
+    if x > 2*CONTROLLER_WIDTH/3:
       return 2
     return 1
-  if y > 2*height/3:
-    if x < width/3:
+  if y > 2*CONTROLLER_HEIGHT/3:
+    if x < CONTROLLER_WIDTH/3:
       return 6
-    if x > 2*width/3:
+    if x > 2*CONTROLLER_WIDTH/3:
       return 8
     return 7
-  if x < width/3:
+  if x < CONTROLLER_WIDTH/3:
     return 3
-  if x > 2*width/3:
+  if x > 2*CONTROLLER_WIDTH/3:
     return 5
   return 4
 
@@ -122,7 +127,6 @@ def getButtonPress(quadrant):
   return buttons[quadrantButtonMap[quadrant]]["key"], quadrantButtonMap[quadrant]
 
 def assembleOverlay():
-  print quadrantButtonMap
   h, w = buttons["B"]["image"].shape[:2]
   overlay = np.zeros((h*3, w*3 + 1, 3), np.uint8)
   overlaymask = np.zeros((h*3, w*3 + 1, 3), np.uint8)
@@ -135,27 +139,13 @@ def assembleOverlay():
 
   return overlay, overlaymask
 
-emulator_current_frame = None
-def processEmulatorStream(pipe):
-  while True:
-    raw_image = pipe.stdout.read(640*528*3)
-    # transform the byte read into a numpy array
-    image = np.fromstring(raw_image, dtype='uint8')
-    print image.shape
-    emulator_current_frame = image.reshape((640,528,3))
-    # throw away the data in the pipe's buffer.
-    pipe.stdout.flush()
-
-
 # Handle Grayson Stream
-height = 480
-width = 640
-runningAverage = np.zeros((height,width, 3), np.float64) # image to store running avg
+runningAverage = np.zeros((CONTROLLER_HEIGHT,CONTROLLER_WIDTH, 3), np.float64) # image to store running avg
 stream=urllib.urlopen('***REMOVED***')
 bytes=''
 areaThreshold = 1000
 framecount = 0
-# window_id = getWindow()
+window_id = getWindow()
 
 setQuadrantButtonMap()
 overlay, overlayMask = assembleOverlay()
@@ -163,14 +153,34 @@ overlay, overlayMask = assembleOverlay()
 # Handle Emulator Stream
 emulator_stream_command = [ FFMPEG_BIN,
             '-f', 'x11grab',
-            '-i', ':0',
+            '-s', str(EMULATOR_WIDTH) + 'x' + str(EMULATOR_HEIGHT),
+            '-i', ':0.0',
             '-f', 'image2pipe',
             '-pix_fmt', 'rgb24',
             '-vcodec', 'rawvideo', '-']
 emulator_stream_pipe = subprocess.Popen(emulator_stream_command, stdout = subprocess.PIPE, bufsize=10**8)
-processEmulatorStream(emulator_stream_pipe)
 
-output = np.zeros((720, 1280, 3), np.uint8)
+# Handle Output Stream
+output = np.zeros((WINDOW_HEIGHT, WINDOW_WIDTH, 3), np.uint8)
+
+command = [ FFMPEG_BIN,
+        '-y', # (optional) overwrite output file if it exists
+        '-f', 'rawvideo',
+        '-vcodec','rawvideo',
+        '-s', str(WINDOW_WIDTH) + 'x' + str(WINDOW_HEIGHT), # size of one frame
+        '-pix_fmt', 'rgb24',
+        '-r', '24', # frames per second
+        '-i', '-', # The imput comes from a pipe
+        '-an', # Tells FFMPEG not to expect any audio
+        '-vcodec', 'flv',
+	#'-b', '1000k',
+	#'-minrate', '1000k',
+	#'-maxrate', '1000k',
+	#'-preset', 'ultrafast',
+        'test.flv' ]
+
+output_stream_pipe = subprocess.Popen( command, stdin=subprocess.PIPE)
+
 
 while True:
     bytes+=stream.read(1024)
@@ -193,7 +203,7 @@ while True:
             if maxarea > areaThreshold:
                 largestContour = contourAreas[maxarea]
                 ccenter, cradius = cv2.minEnclosingCircle(largestContour)
-        contourImg = np.zeros((height,width, 3), np.uint8)
+        contourImg = np.zeros((CONTROLLER_HEIGHT,CONTROLLER_WIDTH, 3), np.uint8)
         cv2.circle(contourImg,(int(ccenter[0]), int(ccenter[1])),3,(0,255,255),2)
 
         if framecount == 5:
@@ -206,19 +216,27 @@ while True:
             fire(keycode)
           framecount = 0
 
-        cv2.line(contourImg, (0, height/3), (width, height/3), (255, 255, 255))
-        cv2.line(contourImg, (0, 2*height/3), (width, 2*height/3), (255, 255, 255))
-        cv2.line(contourImg, (width/3, 0), (width/3, height), (255, 255, 255))
-        cv2.line(contourImg, (2*width/3, 0), (2*width/3, height), (255, 255, 255))
+        cv2.line(contourImg, (0, CONTROLLER_HEIGHT/3), (CONTROLLER_WIDTH, CONTROLLER_HEIGHT/3), (255, 255, 255))
+        cv2.line(contourImg, (0, 2*CONTROLLER_HEIGHT/3), (CONTROLLER_WIDTH, 2*CONTROLLER_HEIGHT/3), (255, 255, 255))
+        cv2.line(contourImg, (CONTROLLER_WIDTH/3, 0), (CONTROLLER_WIDTH/3, CONTROLLER_HEIGHT), (255, 255, 255))
+        cv2.line(contourImg, (2*CONTROLLER_WIDTH/3, 0), (2*CONTROLLER_WIDTH/3, CONTROLLER_HEIGHT), (255, 255, 255))
 
         img *= overlayMask
         img += overlay
 
-        controller = cv2.add(img, contourImg).tostring()
+        controller_frame = cv2.add(img, contourImg)
 
-        output[:emulator_width, :emulator_height] = frame
-        output[1280 - width:720, 720 - height:720] = emulator_current_frame
+        raw_emulator_image = emulator_stream_pipe.stdout.read(EMULATOR_WIDTH*EMULATOR_HEIGHT*3)
+        # transform the byte read into a numpy array
+        emulator_image = np.fromstring(raw_emulator_image, dtype='uint8')
+        emulator_frame = emulator_image.reshape((EMULATOR_HEIGHT,EMULATOR_WIDTH,3))
+        # throw away the data in the pipe's buffer.
+        emulator_stream_pipe.stdout.flush()
 
-        cv2.imshow("i", output)
+        output[:EMULATOR_HEIGHT, :EMULATOR_WIDTH] = emulator_frame
+        output[WINDOW_HEIGHT - CONTROLLER_HEIGHT:WINDOW_HEIGHT, 640:1280] = controller_frame
+
+	output_stream_pipe.stdin.write(output.tostring())
 
         framecount += 1
+
