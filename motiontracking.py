@@ -219,7 +219,7 @@ while True:
           quadrant = getQuadrant(ccenter)
           keycode, value = getButtonPress(quadrant)
           keypress_queue.insert(0, buttons[quadrantButtonMap[quadrant]]["image"])
-          keypress_queue = keypress_queue[:6]
+          keypress_queue = keypress_queue[:5]
           if value == "EMPTY":
             setQuadrantButtonMap()
             overlay, overlayMask = assembleOverlay()
@@ -254,10 +254,16 @@ while True:
 
         # append keypresses
         bottombar_bottom_left = (0 , WINDOW_HEIGHT)
-        for index, keypress_img in enumerate(keypress_queue):
-          to_prepend_width = int(math.floor(WINDOW_WIDTH/6))
+        to_prepend_width = int(math.floor(WINDOW_WIDTH/6))
+        cv2.putText(output, "RECENT", (bottombar_bottom_left[0]+50, bottombar_bottom_left[1] - (WINDOW_HEIGHT - EMULATOR_HEIGHT) + 50), cv2.FONT_HERSHEY_SIMPLEX, .75, (0,200,200), 2)
+        cv2.putText(output, "PRESSES", (bottombar_bottom_left[0]+50, bottombar_bottom_left[1] - (WINDOW_HEIGHT - EMULATOR_HEIGHT) + 100), cv2.FONT_HERSHEY_SIMPLEX, .75, (0,200,200), 2)
+        index = 1
+        for keypress_img in keypress_queue:
           to_prepend = np.resize(keypress_img, (WINDOW_HEIGHT - EMULATOR_HEIGHT, to_prepend_width, 3))
-          output[EMULATOR_HEIGHT:, index*to_prepend_width:(index+1)*to_prepend_width] = to_prepend
+          cv2.putText(to_prepend, datetime.datetime.now().strftime("%H:%M:%S"), (5, 50), cv2.FONT_HERSHEY_SIMPLEX, .4, (0,200,200), 1)
+          output[EMULATOR_HEIGHT:, index*to_prepend_width:(index+1)*to_prepend_width] = cv2.cvtColor( to_prepend, cv2.COLOR_BGR2RGB )
+          cv2.line(output, (index*to_prepend_width + 1, EMULATOR_HEIGHT), (index*to_prepend_width + 1, WINDOW_HEIGHT), (255, 255, 255))
+          index += 1
 
         output_stream_pipe.stdin.write(output.tostring())
 
