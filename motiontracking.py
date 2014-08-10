@@ -81,7 +81,7 @@ buttons = {
 quadrantButtonMap = {}
 
 def getWindow():
-    result = subprocess.check_output(["xdotool", "search", "--name", "'" + WINDOW_NAME + "'"])
+    result = subprocess.check_output(["xdotool", "search", "--name", WINDOW_NAME])
     return result.split("\n")[0]
 
 def fire(keycode):
