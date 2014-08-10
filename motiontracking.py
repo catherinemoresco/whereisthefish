@@ -1,10 +1,11 @@
 import cv2
-import urllib
-import numpy as np
-import subprocess
-import random
 import math
+import numpy as np
+import random
 import datetime
+import urllib
+import subprocess
+import sys
 
 WINDOW_NAME = "Pokemon"
 WINDOW_HEIGHT = 720
@@ -142,7 +143,7 @@ def assembleOverlay():
 
 # Handle Grayson Stream
 runningAverage = np.zeros((CONTROLLER_HEIGHT,CONTROLLER_WIDTH, 3), np.float64) # image to store running avg
-stream=urllib.urlopen(sys.argv[0])
+stream=urllib.urlopen(sys.argv[1])
 bytes=''
 areaThreshold = 1000
 framecount = 0
@@ -173,7 +174,10 @@ command = [ FFMPEG_BIN,
         '-r', '15', # frames per second
         '-i', '-', # The imput comes from a pipe
         '-f', 'alsa',
-        '-i' 'pulse'
+        '-i', 'pulse',
+        '-f', 'flv',
+        '-ac', '2',
+        '-ar', '44100',
         '-vcodec', 'libx264',
         '-g', '30',
         '-keyint_min', '15',
@@ -185,9 +189,10 @@ command = [ FFMPEG_BIN,
         '-s', str(WINDOW_WIDTH) + 'x' + str(WINDOW_HEIGHT),
         '-preset', 'ultrafast',
         '-tune', 'film',
-        '-threads', '2',
+        '-acodec', 'libmp3lame',
+        '-threads', '4',
         '-strict', 'normal',
-        'rtmp://live.twitch.tv/app/' + sys.argv[1] ]
+        'rtmp://live.twitch.tv/app/' + sys.argv[2] ]
 
 output_stream_pipe = subprocess.Popen( command, stdin=subprocess.PIPE)
 
