@@ -164,6 +164,8 @@ command = [ FFMPEG_BIN,
         '-r', '15', # frames per second
         '-i', '-', # The imput comes from a pipe
         '-f', 'x11grab',
+        '-s', str(EMULATOR_WIDTH) + 'x' + str(EMULATOR_HEIGHT),
+        '-r', '15',
         '-i', ':0.0',
         '-f', 'alsa',
         '-i', 'pulse',
