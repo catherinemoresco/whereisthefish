@@ -172,18 +172,19 @@ command = [ FFMPEG_BIN,
         '-pix_fmt', 'rgb24',
         '-r', '15', # frames per second
         '-i', '-', # The imput comes from a pipe
-        '-an', # Tells FFMPEG not to expect any audio
-	'-vcodec', 'libx264',
+        '-f', 'alsa',
+        '-i' 'pulse'
+        '-vcodec', 'libx264',
         '-g', '30',
         '-keyint_min', '15',
         '-b', '1000k',
         '-bufsize', '3000k',
-	'-minrate', '1000k',
-	'-maxrate', '1000k',
+        '-minrate', '1000k',
+        '-maxrate', '1000k',
         '-pix_fmt', 'yuv420p',
         '-s', str(WINDOW_WIDTH) + 'x' + str(WINDOW_HEIGHT),
-	'-preset', 'ultrafast',
-	'-tune', 'film',
+        '-preset', 'ultrafast',
+        '-tune', 'film',
         '-threads', '2',
         '-strict', 'normal',
         'rtmp://live.twitch.tv/app/' + sys.argv[1] ]
