@@ -221,6 +221,7 @@ while True:
         contourImg = np.zeros((CONTROLLER_HEIGHT,CONTROLLER_WIDTH, 3), np.uint8)
         cv2.circle(contourImg,(int(ccenter[0]), int(ccenter[1])),3,(0,255,255),2)
 
+        # Grab Key from Position
         if framecount == 5:
           quadrant = getQuadrant(ccenter)
           keycode, value = getButtonPress(quadrant)
@@ -233,6 +234,19 @@ while True:
             fire(keycode)
           framecount = 0
 
+          # append keypresses
+          bottombar_bottom_left = (0 , WINDOW_HEIGHT)
+          to_prepend_width = int(math.floor(WINDOW_WIDTH/6))
+          cv2.putText(output, "RECENT", (bottombar_bottom_left[0]+50, bottombar_bottom_left[1] - (WINDOW_HEIGHT - EMULATOR_HEIGHT) + 50), cv2.FONT_HERSHEY_SIMPLEX, .75, (0,200,200), 2)
+          cv2.putText(output, "PRESSES", (bottombar_bottom_left[0]+50, bottombar_bottom_left[1] - (WINDOW_HEIGHT - EMULATOR_HEIGHT) + 100), cv2.FONT_HERSHEY_SIMPLEX, .75, (0,200,200), 2)
+          index = 1
+          for keypress_img in keypress_queue:
+            to_prepend = np.resize(keypress_img, (WINDOW_HEIGHT - EMULATOR_HEIGHT, to_prepend_width, 3))
+            cv2.putText(to_prepend, datetime.datetime.now().strftime("%H:%M:%S"), (5, 50), cv2.FONT_HERSHEY_SIMPLEX, .4, (0,200,200), 1)
+            output[EMULATOR_HEIGHT:, index*to_prepend_width:(index+1)*to_prepend_width] = cv2.cvtColor( to_prepend, cv2.COLOR_BGR2RGB )
+            cv2.line(output, (index*to_prepend_width + 1, EMULATOR_HEIGHT), (index*to_prepend_width + 1, WINDOW_HEIGHT), (255, 255, 255))
+            index += 1
+
         cv2.line(contourImg, (0, CONTROLLER_HEIGHT/3), (CONTROLLER_WIDTH, CONTROLLER_HEIGHT/3), (255, 255, 255))
         cv2.line(contourImg, (0, 2*CONTROLLER_HEIGHT/3), (CONTROLLER_WIDTH, 2*CONTROLLER_HEIGHT/3), (255, 255, 255))
         cv2.line(contourImg, (CONTROLLER_WIDTH/3, 0), (CONTROLLER_WIDTH/3, CONTROLLER_HEIGHT), (255, 255, 255))
@@ -243,34 +257,21 @@ while True:
 
         controller_frame = cv2.add(img, contourImg)
         controller_frame = cv2.cvtColor( controller_frame, cv2.COLOR_BGR2RGB )
-
-        raw_emulator_image = emulator_stream_pipe.stdout.read(EMULATOR_WIDTH*EMULATOR_HEIGHT*3)
-        # transform the byte read into a numpy array
-        emulator_image = np.fromstring(raw_emulator_image, dtype='uint8')
-        emulator_frame = emulator_image.reshape((EMULATOR_HEIGHT,EMULATOR_WIDTH,3))
-        # throw away the data in the pipe's buffer.
-        emulator_stream_pipe.stdout.flush()
-
-        output[:EMULATOR_HEIGHT, :EMULATOR_WIDTH] = emulator_frame
         output[EMULATOR_HEIGHT-CONTROLLER_HEIGHT:EMULATOR_HEIGHT, WINDOW_WIDTH-CONTROLLER_WIDTH:WINDOW_WIDTH] = controller_frame
-        # append time
-        topbar_bottom_left = (WINDOW_WIDTH-EMULATOR_WIDTH , EMULATOR_HEIGHT-CONTROLLER_HEIGHT)
-        output[:topbar_bottom_left[1], topbar_bottom_left[0]:] = np.zeros((topbar_bottom_left[1], topbar_bottom_left[0], 3), np.uint8)
-        cv2.putText(output, "FPP: " + datetime.datetime.now().strftime("%m-%d-%Y %H:%M:%S-EST"), (topbar_bottom_left[0]+50, topbar_bottom_left[1] - topbar_bottom_left[1]/2 + 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,200,200), 4)
-
-        # append keypresses
-        bottombar_bottom_left = (0 , WINDOW_HEIGHT)
-        to_prepend_width = int(math.floor(WINDOW_WIDTH/6))
-        cv2.putText(output, "RECENT", (bottombar_bottom_left[0]+50, bottombar_bottom_left[1] - (WINDOW_HEIGHT - EMULATOR_HEIGHT) + 50), cv2.FONT_HERSHEY_SIMPLEX, .75, (0,200,200), 2)
-        cv2.putText(output, "PRESSES", (bottombar_bottom_left[0]+50, bottombar_bottom_left[1] - (WINDOW_HEIGHT - EMULATOR_HEIGHT) + 100), cv2.FONT_HERSHEY_SIMPLEX, .75, (0,200,200), 2)
-        index = 1
-        for keypress_img in keypress_queue:
-          to_prepend = np.resize(keypress_img, (WINDOW_HEIGHT - EMULATOR_HEIGHT, to_prepend_width, 3))
-          cv2.putText(to_prepend, datetime.datetime.now().strftime("%H:%M:%S"), (5, 50), cv2.FONT_HERSHEY_SIMPLEX, .4, (0,200,200), 1)
-          output[EMULATOR_HEIGHT:, index*to_prepend_width:(index+1)*to_prepend_width] = cv2.cvtColor( to_prepend, cv2.COLOR_BGR2RGB )
-          cv2.line(output, (index*to_prepend_width + 1, EMULATOR_HEIGHT), (index*to_prepend_width + 1, WINDOW_HEIGHT), (255, 255, 255))
-          index += 1
-
-        output_stream_pipe.stdin.write(output.tostring())
 
         framecount += 1
+
+      raw_emulator_image = emulator_stream_pipe.stdout.read(EMULATOR_WIDTH*EMULATOR_HEIGHT*3)
+      # transform the byte read into a numpy array
+      emulator_image = np.fromstring(raw_emulator_image, dtype='uint8')
+      emulator_frame = emulator_image.reshape((EMULATOR_HEIGHT,EMULATOR_WIDTH,3))
+      # throw away the data in the pipe's buffer.
+      emulator_stream_pipe.stdout.flush()
+
+      output[:EMULATOR_HEIGHT, :EMULATOR_WIDTH] = emulator_frame
+      # append time
+      topbar_bottom_left = (WINDOW_WIDTH-EMULATOR_WIDTH , EMULATOR_HEIGHT-CONTROLLER_HEIGHT)
+      output[:topbar_bottom_left[1], topbar_bottom_left[0]:] = np.zeros((topbar_bottom_left[1], topbar_bottom_left[0], 3), np.uint8)
+      cv2.putText(output, "FPP: " + datetime.datetime.now().strftime("%m-%d-%Y %H:%M:%S-EST"), (topbar_bottom_left[0]+50, topbar_bottom_left[1] - topbar_bottom_left[1]/2 + 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,200,200), 4)
+
+      output_stream_pipe.stdin.write(output.tostring())
