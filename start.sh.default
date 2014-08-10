@@ -1,0 +1,3 @@
+CONTROLLER_STREAM_URL="stream_URL"
+TWITCH_STREAM_KEY="twitch_key"
+python motiontracker.py $CONTROLLER_STREAM_URL $TWITCH_STREAM_KEY

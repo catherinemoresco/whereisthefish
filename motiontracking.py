@@ -142,7 +142,7 @@ def assembleOverlay():
 
 # Handle Grayson Stream
 runningAverage = np.zeros((CONTROLLER_HEIGHT,CONTROLLER_WIDTH, 3), np.float64) # image to store running avg
-stream=urllib.urlopen('***REMOVED***')
+stream=urllib.urlopen(sys.argv[0])
 bytes=''
 areaThreshold = 1000
 framecount = 0
@@ -186,7 +186,7 @@ command = [ FFMPEG_BIN,
 	'-tune', 'film',
         '-threads', '2',
         '-strict', 'normal',
-        'rtmp://live.twitch.tv/app/' + sys.argv[0] ]
+        'rtmp://live.twitch.tv/app/' + sys.argv[1] ]
 
 output_stream_pipe = subprocess.Popen( command, stdin=subprocess.PIPE)
 
