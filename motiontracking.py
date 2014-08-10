@@ -261,17 +261,17 @@ while True:
 
         framecount += 1
 
-      raw_emulator_image = emulator_stream_pipe.stdout.read(EMULATOR_WIDTH*EMULATOR_HEIGHT*3)
-      # transform the byte read into a numpy array
-      emulator_image = np.fromstring(raw_emulator_image, dtype='uint8')
-      emulator_frame = emulator_image.reshape((EMULATOR_HEIGHT,EMULATOR_WIDTH,3))
-      # throw away the data in the pipe's buffer.
-      emulator_stream_pipe.stdout.flush()
+    raw_emulator_image = emulator_stream_pipe.stdout.read(EMULATOR_WIDTH*EMULATOR_HEIGHT*3)
+    # transform the byte read into a numpy array
+    emulator_image = np.fromstring(raw_emulator_image, dtype='uint8')
+    emulator_frame = emulator_image.reshape((EMULATOR_HEIGHT,EMULATOR_WIDTH,3))
+    # throw away the data in the pipe's buffer.
+    emulator_stream_pipe.stdout.flush()
 
-      output[:EMULATOR_HEIGHT, :EMULATOR_WIDTH] = emulator_frame
-      # append time
-      topbar_bottom_left = (WINDOW_WIDTH-EMULATOR_WIDTH , EMULATOR_HEIGHT-CONTROLLER_HEIGHT)
-      output[:topbar_bottom_left[1], topbar_bottom_left[0]:] = np.zeros((topbar_bottom_left[1], topbar_bottom_left[0], 3), np.uint8)
-      cv2.putText(output, "FPP: " + datetime.datetime.now().strftime("%m-%d-%Y %H:%M:%S-EST"), (topbar_bottom_left[0]+50, topbar_bottom_left[1] - topbar_bottom_left[1]/2 + 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,200,200), 4)
+    output[:EMULATOR_HEIGHT, :EMULATOR_WIDTH] = emulator_frame
+    # append time
+    topbar_bottom_left = (WINDOW_WIDTH-EMULATOR_WIDTH , EMULATOR_HEIGHT-CONTROLLER_HEIGHT)
+    output[:topbar_bottom_left[1], topbar_bottom_left[0]:] = np.zeros((topbar_bottom_left[1], topbar_bottom_left[0], 3), np.uint8)
+    cv2.putText(output, "FPP: " + datetime.datetime.now().strftime("%m-%d-%Y %H:%M:%S-EST"), (topbar_bottom_left[0]+50, topbar_bottom_left[1] - topbar_bottom_left[1]/2 + 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,200,200), 4)
 
-      output_stream_pipe.stdin.write(output.tostring())
+    output_stream_pipe.stdin.write(output.tostring())
