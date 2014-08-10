@@ -152,16 +152,6 @@ window_id = getWindow()
 setQuadrantButtonMap()
 overlay, overlayMask = assembleOverlay()
 
-# Handle Emulator Stream
-emulator_stream_command = [ FFMPEG_BIN,
-            '-f', 'x11grab',
-            '-s', str(EMULATOR_WIDTH) + 'x' + str(EMULATOR_HEIGHT),
-            '-i', ':0.0',
-            '-f', 'image2pipe',
-            '-pix_fmt', 'rgb24',
-            '-vcodec', 'rawvideo', '-']
-emulator_stream_pipe = subprocess.Popen(emulator_stream_command, stdout = subprocess.PIPE, bufsize=10**8)
-
 # Handle Output Stream
 output = np.zeros((WINDOW_HEIGHT, WINDOW_WIDTH, 3), np.uint8)
 
@@ -173,9 +163,12 @@ command = [ FFMPEG_BIN,
         '-pix_fmt', 'rgb24',
         '-r', '15', # frames per second
         '-i', '-', # The imput comes from a pipe
+        '-f', 'x11grab',
+        '-i', ':0.0',
         '-f', 'alsa',
         '-i', 'pulse',
         '-f', 'flv',
+        '-filter_complex', 'overlay=0:0',
         '-ac', '2',
         '-ar', '44100',
         '-vcodec', 'libx264',
@@ -225,7 +218,7 @@ while True:
         if framecount == 5:
           quadrant = getQuadrant(ccenter)
           keycode, value = getButtonPress(quadrant)
-          keypress_queue.insert(0, buttons[quadrantButtonMap[quadrant]]["image"])
+          keypress_queue.insert(0, {"img": buttons[quadrantButtonMap[quadrant]]["image"], "time": datetime.datetime.now().strftime("%H:%M:%S")})
           keypress_queue = keypress_queue[:5]
           if value == "EMPTY":
             setQuadrantButtonMap()
@@ -240,9 +233,10 @@ while True:
           cv2.putText(output, "RECENT", (bottombar_bottom_left[0]+50, bottombar_bottom_left[1] - (WINDOW_HEIGHT - EMULATOR_HEIGHT) + 50), cv2.FONT_HERSHEY_SIMPLEX, .75, (0,200,200), 2)
           cv2.putText(output, "PRESSES", (bottombar_bottom_left[0]+50, bottombar_bottom_left[1] - (WINDOW_HEIGHT - EMULATOR_HEIGHT) + 100), cv2.FONT_HERSHEY_SIMPLEX, .75, (0,200,200), 2)
           index = 1
-          for keypress_img in keypress_queue:
+          for keypress_object in keypress_queue:
+            keypress_img = keypress_object["img"]
             to_prepend = np.resize(keypress_img, (WINDOW_HEIGHT - EMULATOR_HEIGHT, to_prepend_width, 3))
-            cv2.putText(to_prepend, datetime.datetime.now().strftime("%H:%M:%S"), (5, 50), cv2.FONT_HERSHEY_SIMPLEX, .4, (0,200,200), 1)
+            cv2.putText(to_prepend, keypress_object["time"], (5, 50), cv2.FONT_HERSHEY_SIMPLEX, .4, (0,200,200), 1)
             output[EMULATOR_HEIGHT:, index*to_prepend_width:(index+1)*to_prepend_width] = cv2.cvtColor( to_prepend, cv2.COLOR_BGR2RGB )
             cv2.line(output, (index*to_prepend_width + 1, EMULATOR_HEIGHT), (index*to_prepend_width + 1, WINDOW_HEIGHT), (255, 255, 255))
             index += 1
@@ -259,19 +253,10 @@ while True:
         controller_frame = cv2.cvtColor( controller_frame, cv2.COLOR_BGR2RGB )
         output[EMULATOR_HEIGHT-CONTROLLER_HEIGHT:EMULATOR_HEIGHT, WINDOW_WIDTH-CONTROLLER_WIDTH:WINDOW_WIDTH] = controller_frame
 
+        # append time
+        topbar_bottom_left = (WINDOW_WIDTH-EMULATOR_WIDTH , EMULATOR_HEIGHT-CONTROLLER_HEIGHT)
+        output[:topbar_bottom_left[1], topbar_bottom_left[0]:] = np.zeros((topbar_bottom_left[1], topbar_bottom_left[0], 3), np.uint8)
+        cv2.putText(output, "FPP: " + datetime.datetime.now().strftime("%m-%d-%Y %H:%M:%S-EST"), (topbar_bottom_left[0]+50, topbar_bottom_left[1] - topbar_bottom_left[1]/2 + 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,200,200), 4)
+
+        output_stream_pipe.stdin.write(output.tostring())
         framecount += 1
-
-    raw_emulator_image = emulator_stream_pipe.stdout.read(EMULATOR_WIDTH*EMULATOR_HEIGHT*3)
-    # transform the byte read into a numpy array
-    emulator_image = np.fromstring(raw_emulator_image, dtype='uint8')
-    emulator_frame = emulator_image.reshape((EMULATOR_HEIGHT,EMULATOR_WIDTH,3))
-    # throw away the data in the pipe's buffer.
-    emulator_stream_pipe.stdout.flush()
-
-    output[:EMULATOR_HEIGHT, :EMULATOR_WIDTH] = emulator_frame
-    # append time
-    topbar_bottom_left = (WINDOW_WIDTH-EMULATOR_WIDTH , EMULATOR_HEIGHT-CONTROLLER_HEIGHT)
-    output[:topbar_bottom_left[1], topbar_bottom_left[0]:] = np.zeros((topbar_bottom_left[1], topbar_bottom_left[0], 3), np.uint8)
-    cv2.putText(output, "FPP: " + datetime.datetime.now().strftime("%m-%d-%Y %H:%M:%S-EST"), (topbar_bottom_left[0]+50, topbar_bottom_left[1] - topbar_bottom_left[1]/2 + 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,200,200), 4)
-
-    output_stream_pipe.stdin.write(output.tostring())
