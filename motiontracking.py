@@ -7,7 +7,7 @@ import urllib
 import subprocess
 import sys
 
-WINDOW_NAME = "Pokemon"
+WINDOW_NAME = "Pokemon Red"
 WINDOW_HEIGHT = 720
 WINDOW_WIDTH = 1280
 FFMPEG_BIN = "ffmpeg"
@@ -81,7 +81,7 @@ buttons = {
 quadrantButtonMap = {}
 
 def getWindow():
-    result = subprocess.check_output(["xdotool", "search", "--name", WINDOW_NAME])
+    result = subprocess.check_output(["xdotool", "search", "--name", "'" + WINDOW_NAME + "'"])
     return result.split("\n")[0]
 
 def fire(keycode):
