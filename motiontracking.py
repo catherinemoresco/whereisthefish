@@ -161,11 +161,11 @@ command = [ FFMPEG_BIN,
         '-vcodec','rawvideo',
         '-s', str(WINDOW_WIDTH) + 'x' + str(WINDOW_HEIGHT), # size of one frame
         '-pix_fmt', 'rgb24',
-        '-r', '15', # frames per second
+        '-r', '10', # frames per second
         '-i', '-', # The imput comes from a pipe
         '-f', 'x11grab',
         '-s', str(EMULATOR_WIDTH) + 'x' + str(EMULATOR_HEIGHT),
-        '-r', '15',
+        '-r', '10',
         '-i', ':0.0',
         '-f', 'alsa',
         '-i', 'pulse',
@@ -174,7 +174,7 @@ command = [ FFMPEG_BIN,
         '-ac', '2',
         '-ar', '44100',
         '-vcodec', 'libx264',
-        '-g', '30',
+        '-g', '20',
         '-keyint_min', '15',
         '-b', '900k',
         '-bufsize', '280k',
@@ -219,7 +219,7 @@ while True:
         cv2.circle(contourImg,(int(ccenter[0]), int(ccenter[1])),3,(0,255,255),2)
 
         # Grab Key from Position
-        if framecount == 5:
+        if framecount == 10:
           quadrant = getQuadrant(ccenter)
           keycode, value = getButtonPress(quadrant)
           keypress_queue.insert(0, {"img": buttons[quadrantButtonMap[quadrant]]["image"], "time": datetime.datetime.now().strftime("%H:%M:%S")})
