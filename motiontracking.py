@@ -81,11 +81,14 @@ buttons = {
 quadrantButtonMap = {}
 
 def getWindow():
-    result = subprocess.check_output(["xdotool", "search", "--name", WINDOW_NAME])
+    result = subprocess.check_output(["xdotool", "search","--sync", "--limit", "1", "--name", WINDOW_NAME])
     return result.split("\n")[0]
 
 def fire(keycode):
-    subprocess.call(["xdotool", "key", "--window", str(window_id), keycode])
+    if subprocess.call(["xdotool", "keydown", "--window", str(window_id), keycode]) != 0:
+        return
+    subprocess.call(["sleep", ".1"])
+    subprocess.call(["xdotool", "keyup", "--window", str(window_id), keycode])
 
 def diffImg(t1, t2):
     gray1 = cv2.cvtColor(t1, cv2.COLOR_BGR2GRAY)
@@ -170,6 +173,7 @@ command = [ FFMPEG_BIN,
         '-f', 'alsa',
         '-i', 'pulse',
         '-f', 'flv',
+        '-r', '10',
         '-filter_complex', 'overlay=0:0',
         '-ac', '2',
         '-ar', '44100',
@@ -189,7 +193,7 @@ command = [ FFMPEG_BIN,
         '-acodec', 'libmp3lame',
         '-threads', '4',
         '-strict', 'normal',
-        'rtmp://live.twitch.tv/app/' + sys.argv[2] ]
+        'rtmp://live-lhr.twitch.tv/app/' + sys.argv[2] ]
 
 output_stream_pipe = subprocess.Popen( command, stdin=subprocess.PIPE)
 
@@ -219,7 +223,7 @@ while True:
         cv2.circle(contourImg,(int(ccenter[0]), int(ccenter[1])),3,(0,255,255),2)
 
         # Grab Key from Position
-        if framecount == 10:
+        if framecount == 15:
           quadrant = getQuadrant(ccenter)
           keycode, value = getButtonPress(quadrant)
           keypress_queue.insert(0, {"img": buttons[quadrantButtonMap[quadrant]]["image"], "time": datetime.datetime.now().strftime("%H:%M:%S")})
