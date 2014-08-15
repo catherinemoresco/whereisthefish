@@ -1,8 +1,10 @@
+import cv2
 import math
 import random
+import numpy as np
 
 class Screen:
-  def __init__(self, height, width, x_grids, y_grids, buttons):
+  def __init__(self, width, height, x_grid_len, y_grid_len, buttons):
     self.width = width
     self.height = height
     self.x_grid_len = x_grid_len
@@ -10,18 +12,18 @@ class Screen:
     if len(buttons) > height * width:
       raise ValueError('Attribute, buttons, must the same size as the screen grid')
     self.buttons = buttons
+    self.grid = [[0 for x in range(y_grid_len)] for x in range(x_grid_len)]
     self.shuffle()
 
   def shuffle(self):
-    self.grid = []
     unused_width = range(self.x_grid_len)
     unused_height = [[x for x in range(self.y_grid_len)] for x in range(self.x_grid_len)]
     for button in self.buttons:
       while True:
         current_x = random.choice(unused_width)
-        if len(unused_grid[current_x]) > 0:
+        if len(unused_height[current_x]) > 0:
           break
-      current_y = random.choice(unused_grid[current_x])
+      current_y = random.choice(unused_height[current_x])
 
       self.grid[current_x][current_y] = button
 
@@ -33,13 +35,13 @@ class Screen:
     combined_image = np.zeros((self.height, self.width, 3), np.uint8)
     combined_mask = np.zeros((self.height, self.width, 3), np.uint8)
 
-    button_height = math.floor(self.height / self.y_grid_len)
-    button_width = math.floor(self.width / self.x_grid_len)
+    button_height = int(math.floor(self.height / self.y_grid_len))
+    button_width = int(math.floor(self.width / self.x_grid_len))
 
     for x in range(self.x_grid_len):
       for y in range(self.y_grid_len):
-        image = np.resize(self.grid[x][y]["image"], (button_height, button_width, 3))
-        mask = self.grid[x][y]["mask"]
+        image = np.resize(self.grid[x][y].image, (button_height, button_width, 3))
+        mask = self.grid[x][y].mask
 
         combined_image[button_height*y:button_height*(y + 1), button_width*x:button_width*(x + 1)] = image
         combined_mask[button_height*y:button_height*(y + 1), button_width*x:button_width*(x + 1)] = mask
@@ -54,7 +56,7 @@ class Screen:
     return combined_image, combined_mask
 
   def getButtonFromPosition(self, x, y):
-    x_dim = math.floor((self.width / x) * self.x_grid_len)
-    y_dim = math.floor((self.height / y) * self.y_grid_len)
+    x_dim = int(math.floor((float(x) / float(self.width)) * self.x_grid_len))
+    y_dim = int(math.floor((float(y) / float(self.height)) * self.y_grid_len))
 
     return self.grid[x_dim][y_dim]
