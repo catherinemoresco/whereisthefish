@@ -107,6 +107,7 @@ while True:
         img += overlay
 
         controller_frame = cv2.add(img, contourImg)
+        controller_frame = overlay_screen.overlayGrid(controller_frame)
         controller_frame = cv2.cvtColor( controller_frame, cv2.COLOR_BGR2RGB )
         output[config.EMULATOR.HEIGHT-config.CONTROLLER.HEIGHT:config.EMULATOR.HEIGHT, config.WINDOW.WIDTH-config.CONTROLLER.WIDTH:config.WINDOW.WIDTH] = controller_frame
 
