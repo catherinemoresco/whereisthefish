@@ -6,12 +6,23 @@ import random
 import datetime
 import urllib
 import subprocess
+import atexit
+import sys
+import time
+import signal
 
 from os.path import abspath, realpath, join
 from screen import Screen
 from button import Button
 from output import output_stream_pipe
 
+# Handle Process End
+def signal_handler(signal, frame):
+        print('Terminated, SIGINT caught.')
+        sys.exit(0)
+signal.signal(signal.SIGINT, signal_handler)
+
+# Handle Images
 image_path = join(here, '../assets/images/')
 overlay_screen = Screen(config.CONTROLLER.WIDTH, config.CONTROLLER.HEIGHT, 3, 3, [
   Button('z', cv2.imread(abspath(join(image_path, "b.png")), 1)),
@@ -40,7 +51,9 @@ def processFrame(bytes):
   a = cv2.imdecode(np.fromstring(bytes, dtype=np.uint8),cv2.CV_LOAD_IMAGE_COLOR)
   return a
 
-# @TODO: Handle flushing buffers to keep streams synced
+# Start Emulator and Load State if Available
+emulator_pipe = subprocess.Popen([config.EMULATOR.EMULATOR_BIN, config.EMULATOR.LOCATION], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
 # Handle Grayson Stream
 stream = urllib.urlopen(config.VIDEO.INPUT)
 bytes = ''
@@ -120,3 +133,16 @@ while True:
 
         output_stream_pipe.stdin.write(output.tostring())
         framecount += 1
+
+def cleanup():
+    timeout_sec = 5
+    for p in [emulator_pipe, output_stream_pipe]: # list of your processes
+        p_sec = 0
+        for second in range(timeout_sec):
+            if p.poll() == None:
+                time.sleep(1)
+                p_sec += 1
+            if p_sec >= timeout_sec:
+                p.kill() # supported from python 2.6
+
+atexit.register(cleanup)
