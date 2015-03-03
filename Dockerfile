@@ -40,14 +40,16 @@ RUN mkdir /etc/service/pulseaudio
 ADD environment/pulseaudio.sh /etc/service/pulseaudio/run
 RUN chmod +x /etc/service/pulseaudio/run
 
-# Install Mednafen
-RUN wget -q -O mednafen.tar.bz2 http://hivelocity.dl.sourceforge.net/project/mednafen/Mednafen/0.9.38.2/mednafen-0.9.38.2.tar.bz2 && \
-    tar vxfj mednafen.tar.bz2 && rm mednafen.tar.bz2
-RUN sed -i '1242iif(address > 0xd158 && address < 0xd24A) printf("gb_mem:%04x:%02x\\n", address, retval);' /mednafen/src/gb/gb.cpp
-WORKDIR /mednafen
-RUN ./configure && make && sudo make install
+# Install Gambatte
+WORKDIR /tmp
+ADD http://hivelocity.dl.sourceforge.net/project/gambatte/gambatte/r571/gambatte_src-r571.tar.gz gambatte.tar.gz
+RUN tar xvfz gambatte.tar.gz && rm gambatte.tar.gz
+WORKDIR /tmp/gambatte/libgambatte
+RUN pip install --egg SCons && scons
+WORKDIR /tmp/gambatte
+RUN /bin/bash ./build_sdl.sh
 WORKDIR /
-ADD environment/mednafen-09x.cfg /.mednafen/mednafen-09x.cfg
+RUN mv /tmp/gambatte/gambatte_sdl/gambatte_sdl /usr/bin/gambatte# && rm -rf /tmp/gambatte
 
 # Copy Application Files
 RUN mkdir /whereisthefish

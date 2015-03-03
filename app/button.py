@@ -3,10 +3,11 @@ import cv2
 import numpy as np
 
 class Button:
-  def __init__(self, keycode, image):
+  def __init__(self, keycode, image, visible=True):
     self.keycode = keycode
-    self.image = image
-    self.mask = self.getMaskFromImage(image)
+    if visible:
+        self.image = image
+        self.mask = self.getMaskFromImage(image)
 
   def press(self, window_id):
     if subprocess.call(["xdotool", "keydown", "--window", str(window_id), self.keycode]) != 0:

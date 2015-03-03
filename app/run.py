@@ -10,11 +10,15 @@ import atexit
 import sys
 import time
 import signal
+import shlex
 
 from os.path import abspath, realpath, join
 from screen import Screen
 from button import Button
 from output import output_stream_pipe
+
+SAVE_BUTTON = Button('F5', None, False)
+LOAD_BUTTON = Button('F8', None, False)
 
 # Handle Process End
 def signal_handler(signal, frame):
@@ -22,18 +26,18 @@ def signal_handler(signal, frame):
         sys.exit(0)
 signal.signal(signal.SIGINT, signal_handler)
 
-# Handle Images
+# Handle Buttons
 image_path = join(here, '../assets/images/')
 overlay_screen = Screen(config.CONTROLLER.WIDTH, config.CONTROLLER.HEIGHT, 3, 3, [
-  Button('z', cv2.imread(abspath(join(image_path, "b.png")), 1)),
-  Button('x', cv2.imread(abspath(join(image_path, "a.png")), 1)),
-  Button('w', cv2.imread(abspath(join(image_path, "up.png")), 1)),
-  Button('s', cv2.imread(abspath(join(image_path, "down.png")), 1)),
-  Button('a', cv2.imread(abspath(join(image_path, "left.png")), 1)),
-  Button('d', cv2.imread(abspath(join(image_path, "right.png")), 1)),
-  Button('q', cv2.imread(abspath(join(image_path, "select.png")), 1)),
-  Button('e', cv2.imread(abspath(join(image_path, "start.png")), 1)),
-  Button(None, cv2.imread(abspath(join(image_path, "empty.png")), 1))
+  Button('z', cv2.imread(abspath(join(image_path, "b.png")), True)),
+  Button('x', cv2.imread(abspath(join(image_path, "a.png")), True)),
+  Button('w', cv2.imread(abspath(join(image_path, "up.png")), True)),
+  Button('s', cv2.imread(abspath(join(image_path, "down.png")), True)),
+  Button('a', cv2.imread(abspath(join(image_path, "left.png")), True)),
+  Button('d', cv2.imread(abspath(join(image_path, "right.png")), True)),
+  Button('q', cv2.imread(abspath(join(image_path, "select.png")), True)),
+  Button('e', cv2.imread(abspath(join(image_path, "start.png")), True)),
+  Button(None, cv2.imread(abspath(join(image_path, "empty.png")), True))
 ])
 
 def getWindow():
@@ -52,13 +56,17 @@ def processFrame(bytes):
   return a
 
 # Start Emulator and Load State if Available
-emulator_pipe = subprocess.Popen([config.EMULATOR.EMULATOR_BIN, config.EMULATOR.LOCATION], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+emulator_pipe = subprocess.Popen([config.EMULATOR.EMULATOR_BIN] + shlex.split(config.EMULATOR.EMULATOR_FLAGS) + [config.EMULATOR.LOCATION])
 
 # Handle Grayson Stream
 stream = urllib.urlopen(config.VIDEO.INPUT)
 bytes = ''
 framecount = 0
+savecount = 0
+
+# get emulator window and load previous save
 window_id = getWindow()
+LOAD_BUTTON.press(window_id)
 
 overlay, overlayMask = overlay_screen.render()
 
@@ -89,6 +97,13 @@ while True:
                 ccenter, cradius = cv2.minEnclosingCircle(largestContour)
         contourImg = np.zeros((config.CONTROLLER.HEIGHT,config.CONTROLLER.WIDTH, 3), np.uint8)
         cv2.circle(contourImg,(int(ccenter[0]), int(ccenter[1])),3,(0,255,255),2)
+
+        # Handle Occasional Saving
+        if savecount == 1000:
+          SAVE_BUTTON.press(window_id)
+          savecount = 0
+        else:
+          savecount += 1
 
         # Grab Key from Position
         if framecount == 15:
