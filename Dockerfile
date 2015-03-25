@@ -15,7 +15,9 @@ RUN apt-add-repository multiverse && apt-get -qq update && apt-get -qq -y instal
     pulseaudio \
     xdotool \
     python python-dev python-distribute python-pip \
-    build-essential pkg-config libasound2-dev libcdio-dev libsdl1.2-dev libsdl-net1.2-dev libsndfile1-dev zlib1g-dev && \
+    build-essential pkg-config libasound2-dev libcdio-dev libsdl1.2-dev libsdl-net1.2-dev libsndfile1-dev zlib1g-dev \
+    libtiff5-dev libjpeg8-dev zlib1g-dev \
+    libfreetype6-dev liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev python-tk && \
     apt-get -qq -y clean
 
 
@@ -42,14 +44,12 @@ RUN chmod +x /etc/service/pulseaudio/run
 
 # Install Gambatte
 WORKDIR /tmp
-ADD http://hivelocity.dl.sourceforge.net/project/gambatte/gambatte/r571/gambatte_src-r571.tar.gz gambatte.tar.gz
-RUN tar xvfz gambatte.tar.gz && rm gambatte.tar.gz
-WORKDIR /tmp/gambatte/libgambatte
-RUN pip install --egg SCons && scons
+ADD environment/gambatte gambatte
 WORKDIR /tmp/gambatte
-RUN /bin/bash ./build_sdl.sh
+RUN pip install --egg SCons
+RUN ./build_sdl.sh
 WORKDIR /
-RUN mv /tmp/gambatte/gambatte_sdl/gambatte_sdl /usr/bin/gambatte# && rm -rf /tmp/gambatte
+RUN mv /tmp/gambatte/gambatte_sdl/gambatte_sdl /usr/bin/gambatte
 
 # Copy Application Files
 RUN mkdir /whereisthefish

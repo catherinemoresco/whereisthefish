@@ -6,7 +6,7 @@ command = [ config.VIDEO.FFMPEG_BIN,
   '-f', 'rawvideo',
   '-vcodec','rawvideo',
   '-s', str(config.WINDOW.WIDTH) + 'x' + str(config.WINDOW.HEIGHT), # size of one frame
-  '-pix_fmt', 'rgb24',
+  '-pix_fmt', 'rgba',
   '-r', '10', # frames per second
   '-i', '-', # The imput comes from a pipe
   '-f', 'x11grab',
@@ -17,7 +17,7 @@ command = [ config.VIDEO.FFMPEG_BIN,
   '-i', 'pulse',
   '-f', 'flv',
   '-r', '10',
-  '-filter_complex', 'overlay=0:0',
+  '-filter_complex', '[0:v][1:v]overlay=86:24[a]; [a][0:v]overlay=0:0',
   '-ac', '2',
   '-ar', '44100',
   '-vcodec', 'libx264',

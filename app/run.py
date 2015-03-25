@@ -1,4 +1,4 @@
-from config import config, here
+from config import config, asset_path, image_path, font_path
 import cv2
 import math
 import numpy as np
@@ -12,13 +12,17 @@ import time
 import signal
 import shlex
 
-from os.path import abspath, realpath, join
+from os.path import abspath, join
 from screen import Screen
 from button import Button
+from pokemon import render_team, monitor_team
 from output import output_stream_pipe
 
-SAVE_BUTTON = Button('F5', None, False)
-LOAD_BUTTON = Button('F8', None, False)
+from PIL import Image, ImageFont, ImageDraw
+from threading import Thread
+
+SAVE_BUTTON = Button('F5', 'Save', None, False)
+LOAD_BUTTON = Button('F8', 'Load', None, False)
 
 # Handle Process End
 def signal_handler(signal, frame):
@@ -27,17 +31,16 @@ def signal_handler(signal, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 # Handle Buttons
-image_path = join(here, '../assets/images/')
 overlay_screen = Screen(config.CONTROLLER.WIDTH, config.CONTROLLER.HEIGHT, 3, 3, [
-  Button('z', cv2.imread(abspath(join(image_path, "b.png")), True)),
-  Button('x', cv2.imread(abspath(join(image_path, "a.png")), True)),
-  Button('w', cv2.imread(abspath(join(image_path, "up.png")), True)),
-  Button('s', cv2.imread(abspath(join(image_path, "down.png")), True)),
-  Button('a', cv2.imread(abspath(join(image_path, "left.png")), True)),
-  Button('d', cv2.imread(abspath(join(image_path, "right.png")), True)),
-  Button('q', cv2.imread(abspath(join(image_path, "select.png")), True)),
-  Button('e', cv2.imread(abspath(join(image_path, "start.png")), True)),
-  Button(None, cv2.imread(abspath(join(image_path, "empty.png")), True))
+  Button('z', 'B', cv2.imread(abspath(join(image_path, "b.png")), True)),
+  Button('x', 'A', cv2.imread(abspath(join(image_path, "a.png")), True)),
+  Button('w', 'UP', cv2.imread(abspath(join(image_path, "up.png")), True)),
+  Button('s', 'DOWN', cv2.imread(abspath(join(image_path, "down.png")), True)),
+  Button('a', 'LEFT', cv2.imread(abspath(join(image_path, "left.png")), True)),
+  Button('d', 'RIGHT', cv2.imread(abspath(join(image_path, "right.png")), True)),
+  Button('q', 'SELECT', cv2.imread(abspath(join(image_path, "select.png")), True)),
+  Button('e', 'STAR', cv2.imread(abspath(join(image_path, "start.png")), True)),
+  Button(None, 'RANDOM', cv2.imread(abspath(join(image_path, "empty.png")), True))
 ])
 
 def getWindow():
@@ -53,10 +56,13 @@ def diffImg(t1, t2):
 
 def processFrame(bytes):
   a = cv2.imdecode(np.fromstring(bytes, dtype=np.uint8),cv2.CV_LOAD_IMAGE_COLOR)
+  a = cv2.resize(a, (config.CONTROLLER.WIDTH, config.CONTROLLER.HEIGHT), interpolation=cv2.cv.CV_INTER_AREA)
   return a
 
-# Start Emulator and Load State if Available
-emulator_pipe = subprocess.Popen([config.EMULATOR.EMULATOR_BIN] + shlex.split(config.EMULATOR.EMULATOR_FLAGS) + [config.EMULATOR.LOCATION])
+# Start Emulator and begin monitoring output
+emulator_pipe = subprocess.Popen([config.EMULATOR.EMULATOR_BIN] + shlex.split(config.EMULATOR.EMULATOR_FLAGS) + [config.EMULATOR.LOCATION], stdout=subprocess.PIPE)
+emulator_read_thread = Thread(target=monitor_team, args=(emulator_pipe,))
+emulator_read_thread.start()
 
 # Handle Grayson Stream
 stream = urllib.urlopen(config.VIDEO.INPUT)
@@ -71,8 +77,15 @@ LOAD_BUTTON.press(window_id)
 overlay, overlayMask = overlay_screen.render()
 
 # Handle Output Stream
+background_frame = Image.open(abspath(join(image_path, "background.png")))
 running_average = np.zeros((config.CONTROLLER.HEIGHT,config.CONTROLLER.WIDTH, 3), np.float64) # image to store running avg
-output = np.zeros((config.WINDOW.HEIGHT, config.WINDOW.WIDTH, 3), np.uint8)
+output = Image.new("RGBA", (config.WINDOW.WIDTH, config.WINDOW.HEIGHT))
+
+# load fonts
+button_fnt = ImageFont.truetype(abspath(join(font_path, "button.ttf")), size=20)
+label_fnt = ImageFont.truetype(abspath(join(font_path, "label.ttf")), size=11)
+draw = ImageDraw.Draw(output)
+button = None
 
 keypress_queue = []
 while True:
@@ -114,37 +127,38 @@ while True:
             overlay_screen.shuffle()
             overlay, overlayMask = overlay_screen.render()
           else:
+            # press button and render the button that was pressed
             button.press(window_id)
+
           framecount = 0
 
-          # append keypresses
-          bottombar_bottom_left = (0 , config.WINDOW.HEIGHT)
-          to_prepend_width = int(math.floor(config.WINDOW.WIDTH/6))
-          cv2.putText(output, "RECENT", (bottombar_bottom_left[0]+50, bottombar_bottom_left[1] - (config.WINDOW.HEIGHT - config.EMULATOR.HEIGHT) + 50), cv2.FONT_HERSHEY_SIMPLEX, .75, (0,200,200), 2)
-          cv2.putText(output, "PRESSES", (bottombar_bottom_left[0]+50, bottombar_bottom_left[1] - (config.WINDOW.HEIGHT - config.EMULATOR.HEIGHT) + 100), cv2.FONT_HERSHEY_SIMPLEX, .75, (0,200,200), 2)
-          index = 1
-          for keypress_object in keypress_queue:
-            keypress_img = keypress_object["image"]
-            to_prepend = np.resize(keypress_img, (config.WINDOW.HEIGHT - config.EMULATOR.HEIGHT, to_prepend_width, 3))
-            cv2.putText(to_prepend, keypress_object["time"], (5, 50), cv2.FONT_HERSHEY_SIMPLEX, .4, (0,200,200), 1)
-            output[config.EMULATOR.HEIGHT:, index*to_prepend_width:(index+1)*to_prepend_width] = cv2.cvtColor( to_prepend, cv2.COLOR_BGR2RGB )
-            cv2.line(output, (index*to_prepend_width + 1, config.EMULATOR.HEIGHT), (index*to_prepend_width + 1, config.WINDOW.HEIGHT), (255, 255, 255))
-            index += 1
-
+        # Add Control overlay to controller stream
         img *= overlayMask
         img += overlay
 
+        # Position Controller
         controller_frame = cv2.add(img, contourImg)
         controller_frame = overlay_screen.overlayGrid(controller_frame)
-        controller_frame = cv2.cvtColor( controller_frame, cv2.COLOR_BGR2RGB )
-        output[config.EMULATOR.HEIGHT-config.CONTROLLER.HEIGHT:config.EMULATOR.HEIGHT, config.WINDOW.WIDTH-config.CONTROLLER.WIDTH:config.WINDOW.WIDTH] = controller_frame
+        controller_frame = cv2.cvtColor(controller_frame, cv2.COLOR_BGR2RGB)
+        controller_frame = Image.fromarray(controller_frame)
+        output.paste(controller_frame, (652, 24))
+        output.paste(background_frame, (0,0), background_frame)
+
+        # append team
+        render_team(output, draw, label_fnt)
+
+        # render current button
+        if button != None:
+            fill_color = 200 / int(math.pow(framecount + 1, 1.5))
+            fill = (fill_color,fill_color,fill_color)
+            w, h = draw.textsize(button.name, font=button_fnt)
+            draw.text((594 + ((92 - w) / 2), 500), button.name, font=button_fnt, fill=fill)
+            firstButtonPress = False
 
         # append time
         time_playing = datetime.datetime.now() - datetime.datetime(2014, 8, 2, 8, 0, 0)
-        time_playing_string = '{:02}d {:02}h:{:02}m:{:02}s'.format(time_playing.days, time_playing.seconds // 3600, time_playing.seconds % 3600 // 60, time_playing.seconds % 60)
-        topbar_bottom_left = (config.WINDOW.WIDTH-config.EMULATOR.WIDTH , config.EMULATOR.HEIGHT-config.CONTROLLER.HEIGHT)
-        output[:topbar_bottom_left[1], topbar_bottom_left[0]:] = np.zeros((topbar_bottom_left[1], topbar_bottom_left[0], 3), np.uint8)
-        cv2.putText(output, "Playing For: " + time_playing_string, (topbar_bottom_left[0]+50, topbar_bottom_left[1] - topbar_bottom_left[1]/2 + 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,200,200), 4)
+        time_playing_string = '{:02}d{:02}h{:02}m{:02}s'.format(time_playing.days, time_playing.seconds // 3600, time_playing.seconds % 3600 // 60, time_playing.seconds % 60)
+        draw.text((24, 703), time_playing_string, font=label_fnt)
 
         output_stream_pipe.stdin.write(output.tostring())
         framecount += 1

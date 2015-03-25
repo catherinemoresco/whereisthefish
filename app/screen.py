@@ -40,7 +40,7 @@ class Screen:
     for x in range(self.x_grid_len):
       for y in range(self.y_grid_len):
         image = np.resize(self.grid[x][y].image, (self.button_height, self.button_width, 3))
-        mask = self.grid[x][y].mask
+        mask = np.resize(self.grid[x][y].mask, (self.button_height, self.button_width, 3))
 
         combined_image[self.button_height*y:self.button_height*(y + 1), self.button_width*x:self.button_width*(x + 1)] = image
         combined_mask[self.button_height*y:self.button_height*(y + 1), self.button_width*x:self.button_width*(x + 1)] = mask

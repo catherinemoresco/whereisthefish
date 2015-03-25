@@ -1,4 +1,5 @@
 */.*
 */*.default
 */*.pyc
-enviroment/save
+environment/save
+environment/gambatte/.git

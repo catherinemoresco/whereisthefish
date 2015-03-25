@@ -3,8 +3,9 @@ import cv2
 import numpy as np
 
 class Button:
-  def __init__(self, keycode, image, visible=True):
+  def __init__(self, keycode, name, image, visible=True):
     self.keycode = keycode
+    self.name = name
     if visible:
         self.image = image
         self.mask = self.getMaskFromImage(image)

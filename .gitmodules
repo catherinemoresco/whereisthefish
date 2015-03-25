@@ -1,0 +1,3 @@
+[submodule "environment/gambatte"]
+	path = environment/gambatte
+	url = https://github.com/PFacheris/gambatte.git
