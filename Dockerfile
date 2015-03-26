@@ -23,7 +23,7 @@ RUN apt-add-repository multiverse && apt-get -qq update && apt-get -qq -y instal
 
 # Install OpenCV
 WORKDIR /tmp
-RUN git clone https://github.com/jayrambhia/Install-OpenCV.git && chmod +x /tmp/Install-OpenCV/*/*.sh
+RUN git clone https://github.com/PFacheris/Install-OpenCV.git && chmod +x /tmp/Install-OpenCV/*/*.sh
 WORKDIR /tmp/Install-OpenCV/Ubuntu
 RUN /bin/bash ./opencv_latest.sh
 WORKDIR /
