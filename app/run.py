@@ -22,7 +22,7 @@ from PIL import Image, ImageFont, ImageDraw
 from threading import Thread, Timer
 
 SAVE_BUTTON = Button('F5', 'Save', None, False)
-LOAD_BUTTON = Button('F8', 'Load', None,time_playing_stringe)
+LOAD_BUTTON = Button('F8', 'Load', None, False)
 output_frame_string = None
 
 # Handle Process End
