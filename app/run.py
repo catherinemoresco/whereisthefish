@@ -22,7 +22,7 @@ from PIL import Image, ImageFont, ImageDraw
 from threading import Thread, Timer
 
 SAVE_BUTTON = Button('F5', 'Save', None, False)
-LOAD_BUTTON = Button('F8', 'Load', None, False)
+LOAD_BUTTON = Button('F8', 'Load', None,time_playing_stringe)
 output_frame_string = None
 
 # Handle Process End
@@ -173,17 +173,27 @@ frame_creation_thread = Thread(target=generate_frames)
 frame_creation_thread.daemon = True
 frame_creation_thread.start()
 
+class IntervalThread(Thread):
+    def __init__(self, interval, event, function):
+        Thread.__init__(self)
+        self.interval = interval
+        self.stopped = event
+
+    def run(self):
+        while not self.stopped.wait(self.interval):
+            self.target(*self.args)
+
+stopFlag = Event()
 def pipe_frame():
-    t = Timer(0.1, pipe_frame)
-    t.start()
     if output_frame_string != None:
         try:
             output_stream_pipe.stdin.write(output_frame_string)
         except IOError:
-            t.cancel()
-            return
+            stopFlag.set()
 
-pipe_frame()
+t = IntervalThread(target=pipe_frame, interval=.1, event=stopFlag)
+t.daemon = True
+t.start()
 
 def cleanup():
     timeout_sec = 5
