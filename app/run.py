@@ -19,7 +19,7 @@ from pokemon import render_team, monitor_team
 from output import output_stream_pipe
 
 from PIL import Image, ImageFont, ImageDraw
-from threading import Thread, Timer
+from threading import Thread, Timer, Event
 
 SAVE_BUTTON = Button('F5', 'Save', None, False)
 LOAD_BUTTON = Button('F8', 'Load', None, False)
