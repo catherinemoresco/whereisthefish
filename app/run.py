@@ -19,7 +19,7 @@ from pokemon import render_team, monitor_team
 from output import output_stream_pipe
 
 from PIL import Image, ImageFont, ImageDraw
-from threading import Thread, Timer, Event
+from threading import Thread, Timer, Lock
 
 SAVE_BUTTON = Button('F5', 'Save', None, False)
 LOAD_BUTTON = Button('F8', 'Load', None, False)
@@ -173,27 +173,20 @@ frame_creation_thread = Thread(target=generate_frames)
 frame_creation_thread.daemon = True
 frame_creation_thread.start()
 
-class IntervalThread(Thread):
-    def __init__(self, interval, event, function):
-        Thread.__init__(self)
-        self.interval = interval
-        self.stopped = event
-
-    def run(self):
-        while not self.stopped.wait(self.interval):
-            self.target(*self.args)
-
-stopFlag = Event()
+lock = Lock()
 def pipe_frame():
+    lock.acquire()
+    t = Timer(0.1, pipe_frame)
+    t.daemon = True
+    t.start()
     if output_frame_string != None:
         try:
             output_stream_pipe.stdin.write(output_frame_string)
         except IOError:
-            stopFlag.set()
+            t.cancel()
+    lock.release()
 
-t = IntervalThread(target=pipe_frame, interval=.1, event=stopFlag)
-t.daemon = True
-t.start()
+pipe_frame()
 
 def cleanup():
     timeout_sec = 5
