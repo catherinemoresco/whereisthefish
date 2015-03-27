@@ -177,7 +177,6 @@ lock = Lock()
 def pipe_frame():
     lock.acquire()
     t = Timer(0.1, pipe_frame)
-    t.daemon = True
     t.start()
     if output_frame_string != None:
         try:
