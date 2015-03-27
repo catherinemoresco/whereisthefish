@@ -161,7 +161,7 @@ def generate_frames():
                 firstButtonPress = False
 
             # append time
-            time_playing = datetime.datetime.now() - datetime.datetime(2014, 8, 2, 8, 0, 0)
+            time_playing = datetime.datetime.now() - datetime.datetime(2015, 3, 26, 23, 48, 0)
             time_playing_string = '{:02}d{:02}h{:02}m{:02}s'.format(time_playing.days, time_playing.seconds // 3600, time_playing.seconds % 3600 // 60, time_playing.seconds % 60)
             draw.text((24, 703), time_playing_string, font=label_fnt)
 
