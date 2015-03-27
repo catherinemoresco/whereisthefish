@@ -10,6 +10,8 @@ CMD ["/sbin/my_init"]
 # Update Repository Listings
 RUN apt-add-repository multiverse && apt-get -qq update && apt-get -qq -y install \
     git \
+    zip \
+    unzip \
     wget \
     xvfb \
     pulseaudio \
